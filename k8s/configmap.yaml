@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: jarvis-config
+  namespace: statex-apps
+  labels:
+    app: jarvis
+    managed-by: k8s-migration
+data:
+  RUST_ENV: "production"
+  SERVICE_NAME: "jarvis"
+  DOMAIN: "jarvis.alfares.cz"
+  PORT: "4870"
+
+  # Ecosystem services — internal Kubernetes DNS, ports verified against
+  # live Services in statex-apps and ECOSYSTEM_MAP.md.
+  AUTH_SERVICE_URL: "http://auth-microservice.statex-apps.svc.cluster.local:3370"
+  AI_SERVICE_URL: "http://ai-microservice.statex-apps.svc.cluster.local:3380"
+  LOGGING_SERVICE_URL: "http://logging-microservice.statex-apps.svc.cluster.local:3367"
+  NOTIFICATIONS_SERVICE_URL: "http://notifications-microservice.statex-apps.svc.cluster.local:3368"
+
+  # Object storage — bucket name is not sensitive; credentials come from Vault.
+  MINIO_ENDPOINT: "http://minio-microservice.statex-apps.svc.cluster.local:9000"
+  MINIO_BUCKET: "jarvis-raw"
+
+  # Hosted Auth flow
+  AUTH_PUBLIC_URL: "https://auth.alfares.cz"
+  AUTH_RETURN_URL: "https://jarvis.alfares.cz/auth/callback"
+
+  LOG_LEVEL: "info"

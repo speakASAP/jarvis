@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "profile": "runtime-service",
+  "project": {
+    "name": "jarvis",
+    "repository": "https://github.com/speakASAP/jarvis"
+  },
+  "standard": {
+    "repository": "https://github.com/speakASAP/intent-preservation-system",
+    "revision": "d60998370844ffabc3ca7b2b4a18f580153bef0b"
+  },
+  "artifacts": {
+    "readme": "README.md",
+    "business": "BUSINESS.md",
+    "system": "SYSTEM.md",
+    "agents": "AGENTS.md",
+    "operations": "AGENT_OPERATIONS.md",
+    "claude": "CLAUDE.md",
+    "tasks": "TASKS.md",
+    "state": "STATE.json",
+    "constitution": "docs/00_constitution/CONSTITUTION.md",
+    "vision": "docs/01_vision/VISION.md",
+    "integrationContract": "docs/06_architecture/INTEGRATION_CONTRACT.md",
+    "projectInvariants": "docs/17_governance/PROJECT_INVARIANTS.md",
+    "validationDebt": "docs/orchestrator/VALIDATION_DEBT.md",
+    "bootstrapTask": "docs/11_tasks/TASK-001-bootstrap-service.md",
+    "bootstrapGoalImpact": "docs/22_goal_impact/GOAL-IMPACT-TASK-001.md",
+    "bootstrapExecutionPlan": "docs/21_execution_plans/EP-TASK-001-bootstrap-service.md",
+    "bootstrapValidation": "docs/12_validation/VAL-TASK-001-bootstrap-service.md"
+  },
+  "integrationReview": [
+    {
+      "capability": "auth",
+      "component": "auth-microservice",
+      "decision": "required",
+      "reason": "Wiki holds synthesized ecosystem knowledge; read and ingest must be identity-scoped, not public",
+      "contract": "RS256 service identity + user roles per SERVICE_IDENTITY_CONSUMER_STANDARD.md",
+      "configuration": "AUTH_SERVICE_URL, JARVIS_CLIENT_ID, JARVIS_CLIENT_SECRET via ESO",
+      "failureMode": "Requests rejected with 401 when token invalid or Auth unreachable; no anonymous fallback",
+      "validation": "Unauthenticated request to /query returns 401; valid service token returns 200"
+    },
+    {
+      "capability": "postgres",
+      "component": "db-server-postgres",
+      "decision": "required",
+      "reason": "Wiki page metadata, ingest log and citation index need durable relational state beyond the container",
+      "contract": "Dedicated database jarvis with least-privilege role jarvis_app",
+      "configuration": "DATABASE_URL via ESO from secret/prod/jarvis",
+      "failureMode": "Service fails readiness when database unreachable; never starts with an empty fallback store",
+      "validation": "Readiness probe fails on bad DSN; migrations apply with migrate deploy"
+    },
+    {
+      "capability": "redis",
+      "component": "db-server-redis",
+      "decision": "not-applicable",
+      "reason": "Ingest and lint are low-frequency batch operations; LWC uses its own embedded index and needs no shared cache or queue",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "logging",
+      "component": "logging-microservice",
+      "decision": "required",
+      "reason": "Runtime services emit structured logs",
+      "contract": "HTTP POST to logging-microservice with service=jarvis",
+      "configuration": "LOGGING_SERVICE_URL from configmap",
+      "failureMode": "Log delivery is fire-and-forget and must never throw into the request path; failures degrade to stderr",
+      "validation": "Ingest and query operations appear in logging-microservice for service jarvis"
+    },
+    {
+      "capability": "notifications",
+      "component": "notifications-microservice",
+      "decision": "required",
+      "reason": "Lint findings (contradictions, stale claims, orphan pages) must reach the owner or they go unread",
+      "contract": "HTTP POST to notifications-microservice, PLAIN parse mode",
+      "configuration": "NOTIFICATIONS_SERVICE_URL from configmap",
+      "failureMode": "Notification failure is logged and never blocks or fails the lint run",
+      "validation": "A seeded lint contradiction produces one owner notification"
+    },
+    {
+      "capability": "ai",
+      "component": "ai-microservice",
+      "decision": "required",
+      "reason": "Ingest, query synthesis and lint are LLM operations; model access is centralized in ai-microservice, never a direct provider key in jarvis",
+      "contract": "HTTP to ai-microservice completion endpoint",
+      "configuration": "AI_SERVICE_URL from configmap; no provider API key held by jarvis",
+      "failureMode": "Ingest/query return 503 and change no wiki state when AI is unavailable; partial pages are never committed",
+      "validation": "Ingest of a fixture source produces a wiki page; AI outage leaves wiki byte-identical"
+    },
+    {
+      "capability": "payments",
+      "component": "payments-microservice",
+      "decision": "not-applicable",
+      "reason": "Internal knowledge service with no billing surface",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "catalog",
+      "component": "catalog-microservice",
+      "decision": "not-applicable",
+      "reason": "No product catalog domain",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "orders",
+      "component": "orders-microservice",
+      "decision": "not-applicable",
+      "reason": "No order domain",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "warehouse",
+      "component": "warehouse-microservice",
+      "decision": "not-applicable",
+      "reason": "No physical inventory domain",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "invoices",
+      "component": "invoices-microservice",
+      "decision": "not-applicable",
+      "reason": "No invoicing domain",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "object-storage",
+      "component": "minio-microservice",
+      "decision": "required",
+      "reason": "Raw sources (PDF, images, attachments) are immutable inputs and must not live on container disk",
+      "contract": "Private MinIO bucket jarvis-raw with bucket-scoped credentials",
+      "configuration": "MINIO_ENDPOINT, MINIO_ACCESS_KEY, MINIO_SECRET_KEY, MINIO_BUCKET via ESO",
+      "failureMode": "Ingest fails loudly when the bucket is unreachable; no silent local-disk fallback",
+      "validation": "Upload then retrieve a fixture source; credentials reach no other bucket"
+    },
+    {
+      "capability": "event-bus",
+      "component": "RabbitMQ",
+      "decision": "not-applicable",
+      "reason": "RunLayer is the sole task authority and calls jarvis synchronously over HTTP; no async fan-out is in approved scope",
+      "contract": "not-applicable",
+      "configuration": "not-applicable",
+      "failureMode": "not-applicable",
+      "validation": "not-applicable"
+    },
+    {
+      "capability": "docs-rag",
+      "component": "docs-rag-microservice",
+      "decision": "required",
+      "reason": "Project documentation must be discoverable",
+      "contract": "Direct Git repository ingestion",
+      "configuration": "shared/config/ecosystem-repositories.json",
+      "failureMode": "Git remains authoritative when retrieval is unavailable or unconfident",
+      "validation": "Distinctive project phrase resolves to the owning repository path"
+    },
+    {
+      "capability": "monitoring",
+      "component": "monitoring-microservice",
+      "decision": "required",
+      "reason": "Runtime health must be observable",
+      "contract": "GET /health plus Kubernetes probes",
+      "configuration": "Deployment probes and service metadata",
+      "failureMode": "Readiness prevents unhealthy rollout",
+      "validation": "Health and readiness checks pass"
+    },
+    {
+      "capability": "backups",
+      "component": "backups-microservice",
+      "decision": "required",
+      "reason": "The wiki is a compounding artifact; losing it loses all accumulated synthesis, which cannot be re-derived cheaply",
+      "contract": "Scheduled backup of jarvis database and jarvis-raw bucket",
+      "configuration": "Registered with backups-microservice schedule",
+      "failureMode": "A missed backup window raises an alert rather than passing silently",
+      "validation": "Restore rehearsal reproduces wiki pages and raw sources"
+    }
+  ]
+}

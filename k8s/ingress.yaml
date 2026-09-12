@@ -1,0 +1,27 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jarvis
+  namespace: statex-apps
+  labels:
+    app: jarvis
+    managed-by: k8s-migration
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - jarvis.alfares.cz
+      secretName: jarvis-tls
+  rules:
+    - host: jarvis.alfares.cz
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: jarvis
+                port:
+                  number: 4870

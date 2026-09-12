@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jarvis
+  namespace: statex-apps
+  labels:
+    app: jarvis
+    managed-by: k8s-migration
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: jarvis
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: jarvis
+    spec:
+      containers:
+        - name: app
+          image: localhost:5000/jarvis:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 4870
+              name: http
+          envFrom:
+            - configMapRef:
+                name: jarvis-config
+            - secretRef:
+                name: jarvis-secret
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 4870
+            initialDelaySeconds: 15
+            periodSeconds: 30
+            failureThreshold: 3
+            timeoutSeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 4870
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+            timeoutSeconds: 5
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
