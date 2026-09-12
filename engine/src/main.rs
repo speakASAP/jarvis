@@ -13,6 +13,7 @@ mod error;
 mod external_graph;
 pub mod graph;
 mod import;
+mod learning_schema;
 mod mcp;
 mod scope;
 mod secret_scan;

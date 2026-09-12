@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand, ValueEnum};
-use crate::{changeset, codegraph, config, source_diff, store, sync, trans, view, work};
+use crate::{changeset, codegraph, config, source_diff, store, sync, view, work};
 use crate::error::{AppError, Result};
 use crate::import::collect_documents;
 use crate::scope::{

@@ -152,30 +152,8 @@ fn run(cli: Cli) -> Result<Value> {
                 CgCommand::Run(args) => codegraph::run(&store_path, &args),
             }
         }
-        Command::Office {
-            command: OfficeCommand::Run(args),
-        } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "office")?;
-            crate::office::run(&cwd, &args)
-        }
-        Command::Tutor {
-            command: LearningPluginCommand::Run(args),
-        } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "tutor")?;
-            crate::learning_runtime::run(crate::learning_runtime::Plugin::Tutor, &cwd, &args)
-        }
-        Command::Book {
-            command: LearningPluginCommand::Run(args),
-        } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "book")?;
-            crate::learning_runtime::run(crate::learning_runtime::Plugin::Book, &cwd, &args)
-        }
-        Command::Practice {
-            command: LearningPluginCommand::Run(args),
-        } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "practice")?;
-            crate::learning_runtime::run(crate::learning_runtime::Plugin::Practice, &cwd, &args)
-        }
+        // Office, Tutor, Book and Practice arms removed: document conversion
+        // and the learning suite are out of approved scope.
         Command::View { port, no_open } => {
             changeset::reject_selector(selected_changeset.as_deref(), "view")?;
             ensure_scope_supported(cli.scope, false, "view")?;

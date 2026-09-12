@@ -2,6 +2,7 @@
 // surface and RunLayer is the sole task authority (INV-002).
 include!("types.rs");
 include!("shared_helpers.rs");
+include!("schema_version.rs");
 include!("temporal_memory.rs");
 include!("lifecycle_changesets.rs");
 include!("content_search.rs");

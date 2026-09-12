@@ -1826,14 +1826,8 @@ pub(crate) fn stop_plan(
         let Some(store) = open_store_until(scope_name, &path.path, deadline) else {
             continue;
         };
-        if let Some(tracking) = store.plan_tracking_for_context(context)?
-            && let Some(signal) = stop_signal(Some(tracking.clone()))
-        {
-            if signal.completion_effect == CompletionEffect::ContinueOnce {
-                continuing_plans.push(tracking);
-            }
-            signals.push(signal);
-        }
+        // Plan tracking removed (INV-002): no plan can signal here.
+        let _ = &store;
     }
     if continuing_plans.len() > 1 {
         return render(

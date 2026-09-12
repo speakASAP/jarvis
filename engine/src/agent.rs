@@ -578,13 +578,8 @@ fn apply_scoped_context_work(
             .remove("todo");
         return Ok(());
     };
-    let mut bound = false;
-    let mut plan_enabled = false;
-    let mut todo_enabled = false;
-    let mut plans = Vec::new();
-    let mut todo_open = 0_i64;
-    let mut todo_reminders = Vec::new();
-    let mut todo_omitted = 0_usize;
+    // plan/todo accumulators removed (INV-002).
+    let bound = false;
     for path in resolve_read_store_paths(scope, cwd, true)? {
         ensure_hook_deadline(Some(deadline))?;
         let scope_name = scope_name(path.scope);
@@ -606,35 +601,8 @@ fn apply_scoped_context_work(
     let object = value.as_object_mut().expect("readiness object");
     object.remove("plan");
     object.remove("todo");
-    if bound && plan_enabled {
-        let mut state = json!({
-            "ready": true,
-            "active": i64::from(!plans.is_empty()),
-            "tracked_active": plans.len(),
-            "current": format!("lwc --scope {} plan current --context {context_id}", scope_name(scope)),
-        });
-        if !plans.is_empty() {
-            state["tracking"] = plans.remove(0);
-        }
-        if !plans.is_empty() {
-            state["additional_trackings"] = json!(plans);
-        }
-        value["plan"] = state;
-    }
-    if bound && todo_enabled {
-        todo_omitted += todo_reminders.len().saturating_sub(3);
-        todo_reminders.truncate(3);
-        let mut state = json!({
-            "ready": true,
-            "open": todo_open,
-            "list": format!("lwc --scope {} todo list --context {context_id}", scope_name(scope)),
-        });
-        if !todo_reminders.is_empty() {
-            state["reminders"] = json!(todo_reminders);
-            state["omitted_reminders"] = json!(todo_omitted);
-        }
-        value["todo"] = state;
-    }
+    // plan and todo state blocks removed (INV-002): bound is always false,
+    // and this function strips "plan" and "todo" from its output just above.
     Ok(())
 }
 
@@ -1332,9 +1300,7 @@ fn doctor_for_store(
     value["code_graph"] = codegraph::status(store)?;
     value["agent_context"] = json!({"status":"unbound"});
     if let Some(context) = context {
-        if store.path.is_file() {
-            value["plan"] = Store::open_for_read("project", &store.path)?.tracked_plan(context)?;
-        }
+        // No tracked plan: the task surface is removed (INV-002).
         value["agent_context"] = json!({"status":"explicit_context", "context_id":context});
     }
     Ok(if verbose {
