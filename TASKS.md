@@ -42,9 +42,18 @@ Detailed bootstrap task:
 - Next: vendor LWC, build the HTTP wrapper, add PostgreSQL and MinIO adapters,
   wire integrations, then an owner-gated deploy.
 
-### Provisioning pending owner authorization
+### Provisioning — COMPLETE (2026-09-12)
 
-- Auth application identity plus `app:jarvis:{user,editor,admin}` roles
-- Vault `secret/prod/jarvis` — 9 keys declared in `k8s/external-secret.yaml`, none written yet
-- PostgreSQL database `jarvis` and least-privilege role `jarvis_app`
-- MinIO private bucket `jarvis-raw`
+- Auth application `jarvis` (user_facing) with `app:jarvis:{user,editor,admin}`
+  and `internal:jarvis:{query,ingest}`
+- Four S2S principals, one per (caller -> target) pair, each with exactly one
+  least-privilege role: ai `invoke`, logging `ingest`, notifications `send`,
+  auth `readonly`
+- Vault `secret/prod/jarvis` — 7 keys, matching `k8s/external-secret.yaml` exactly
+- PostgreSQL database `jarvis`, role `jarvis_app` (no superuser/createdb, public
+  schema revoked)
+- MinIO private bucket `jarvis-raw` with a bucket-scoped user; scope verified
+  against a foreign bucket
+
+No client id/secret: this Auth identifies an application by its registered name
+and domain, not an OAuth client credential.
