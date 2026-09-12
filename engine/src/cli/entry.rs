@@ -1,6 +1,8 @@
 pub fn main() {
     let cli = Cli::parse();
-    let full = cli.full || !matches!(&cli.command, Command::Plan { .. } | Command::Remember { .. });
+    // Command::Plan is gone (INV-002); Remember keeps the compact-receipt
+    // behaviour it had upstream.
+    let full = cli.full || !matches!(&cli.command, Command::Remember { .. });
     match run(cli) {
         Ok(Value::Null) => {}
         Ok(value) => println!("{}", serde_json::to_string_pretty(&if full { value } else { compact_receipt(value) }).unwrap()),

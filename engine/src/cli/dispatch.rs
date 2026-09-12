@@ -11,12 +11,7 @@ fn run(cli: Cli) -> Result<Value> {
             | Command::Cg { .. }
             | Command::Doctor { .. }
             | Command::Contract { .. }
-            | Command::Office { .. }
-            | Command::Tutor { .. }
-            | Command::Book { .. }
-            | Command::Practice { .. }
             | Command::View { .. }
-            | Command::Trans { .. }
             | Command::Agent { .. }
             | Command::Discussion { .. }
             | Command::Compress { .. }
