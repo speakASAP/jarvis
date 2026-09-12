@@ -14,7 +14,9 @@ Record known validation failures that are not caused by the active task.
 
 ## Entries
 
-No validation debt recorded.
+| ID | Date | Command | Sanitized failure | Scope | Owner | Current-task impact | Unblock condition | Evidence path |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| VD-001 | 2026-09-12 | `rag_search "jarvis LLM Wiki knowledge layer"` | No result returns `repoName: jarvis`; docs-RAG is healthy but has not yet indexed the repository | Onboarding, docs-RAG registration | ssf | None on documentation or gates; the required docs-RAG capability cannot be evidenced until the next ingestion pass | jarvis appears in the catalog (done 2026-09-12) and docs-RAG completes an ingestion run; re-run the query and confirm the owning repository path resolves | This ledger; verified live 2026-09-12 |
 
 ## Update format
 
