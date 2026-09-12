@@ -4,7 +4,7 @@
   "service": {
     "name": "jarvis",
     "kind": "service",
-    "lifecycle": "onboarded-planning-complete",
+    "lifecycle": "implementation-in-progress",
     "deployment": "not-started",
     "port": 4870,
     "domain": "jarvis.alfares.cz",
@@ -12,22 +12,22 @@
     "auto_deploy": "deny-listed until TASK-001-bootstrap-service is validated"
   },
   "planning": {
-    "status": "planning-complete-implementation-pending",
+    "status": "implementation-in-progress",
     "active_goal_ids": [],
     "next_ready_goal_ids": [],
     "blocked_goal_ids": [],
     "active_workstream_ids": [
       "TASK-001-bootstrap-service"
     ],
-    "last_updated_at": "2026-09-12T18:20:00Z",
+    "last_updated_at": "2026-09-12T18:45:00Z",
     "gates_passed": [
       "adoption/planning",
       "pre-coding"
     ]
   },
   "delivery": {
-    "last_validation_id": null,
-    "last_validation_status": "not-started",
+    "last_validation_id": "VAL-TASK-001-bootstrap-service",
+    "last_validation_status": "partial-schema-verified-on-scratch-db",
     "validation_debt_count": 1,
     "last_deployment_commit": null,
     "open_validation_debt": [
