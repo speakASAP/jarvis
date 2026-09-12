@@ -16,3 +16,7 @@ coverage/
 __pycache__/
 *.pyc
 .DS_Store
+
+# Vendored engine build artifacts
+engine/.cargo-home/
+engine/target/

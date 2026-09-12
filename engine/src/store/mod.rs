@@ -1,3 +1,5 @@
+// plan.rs and todo.rs are deliberately absent: jarvis exposes no task
+// surface and RunLayer is the sole task authority (INV-002).
 include!("types.rs");
 include!("temporal_memory.rs");
 include!("lifecycle_changesets.rs");
@@ -14,8 +16,6 @@ include!("indexing.rs");
 include!("graph_search.rs");
 include!("word_graph.rs");
 include!("tags.rs");
-include!("todo.rs");
-include!("plan.rs");
 include!("sync.rs");
 include!("sync_publish.rs");
 include!("tests.rs");
