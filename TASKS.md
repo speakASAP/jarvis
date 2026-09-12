@@ -30,6 +30,16 @@ linked from those task documents.
         yet ported. Found by cross-checking table names referenced in engine SQL
         against the migration files - do not assume 5a is finished.
   - [ ] 5b core CRUD - port the store's read/write paths off rusqlite.
+  - [x] ATTACH and backup - NOT ported, by decision. See
+        `docs/07_decisions/ADR-001-sqlite-retained-for-transport.md`. The plan's
+        counts were wrong: ATTACH has 14 real sites (not 28) and Backup::new has
+        5 (not 27; the rest were the word in comments). Every one operates on a
+        transient sync/changeset/checkpoint FILE, not the live store, so SQLite
+        is retained there deliberately.
+        OPEN FOLLOW-UP: create_checkpoint is reached from changeset,
+        sync-publication and graph-ingest paths and takes the live connection.
+        Once the store is PostgreSQL, Backup::new cannot accept it. Those paths
+        must use an exported snapshot or be disabled until reimplemented.
   - [ ] 5c search - rewrite queries against tsvector; upstream used fts5 MATCH.
   - [ ] 5d versioning - replace the rusqlite `session` extension, which has no
         PostgreSQL analogue, with explicit row versioning.
