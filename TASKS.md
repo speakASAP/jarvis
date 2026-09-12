@@ -13,7 +13,14 @@ linked from those task documents.
         build iterations; all 132 were consequences of the removals, none
         inherited from upstream. INV-002 verified against the built binary:
         plan, todo, tutor, book, practice, office and trans are all rejected.
-  - [~] 5a schema port - PARTIAL. `migrations/0001_init.sql` (15 tables) and
+  - [x] 5a schema port - DONE. 30 tables across four migrations, applied and
+        exercised on a scratch database. The earlier "37 tables remaining"
+        figure was wrong: of the 54 CREATE TABLE statements in the engine, 9
+        were migration-era duplicates of already-ported tables, 9 were plan/todo
+        tables excluded by INV-002, and 4 (sync_manifest, sync_objects,
+        sync_blobs, files) belong to a separate exported SQLite file and must
+        stay SQLite. Only 16 were genuinely new.
+  - [ ] 5a-superseded note - PARTIAL. `migrations/0001_init.sql` (15 tables) and
         `0002_search.sql` (fts5 -> tsvector+GIN) are applied and exercised on a
         scratch database. They cover only `store/schema.rs`'s bootstrap.
         The engine issues **54** `CREATE TABLE` statements in total:
