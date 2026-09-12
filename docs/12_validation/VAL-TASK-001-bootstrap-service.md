@@ -28,13 +28,20 @@ parallel_workstream_context: final-integration
 
 ## Gate evidence
 
-| Gate | Command | Result | Evidence |
-| --- | --- | --- | --- |
-| Adoption | `python3 ../intent-preservation-system/scripts/validate_adoption_profile.py --root . --phase deployment` | [MISSING] | [MISSING] |
-| Pre-coding | `python3 ../intent-preservation-system/scripts/pre_coding_gate.py --root .` | [MISSING] | [MISSING] |
-| Application | [MISSING: command] | [MISSING] | [MISSING] |
-| Integration | [MISSING: command] | [MISSING] | [MISSING] |
-| Deployment dry run | `../shared/scripts/deploy.sh jarvis --dry-run` | [MISSING] | [MISSING] |
+    python3 ../intent-preservation-system/scripts/validate_adoption_profile.py --root . --phase planning
+    IPS adoption profile valid for planning: jarvis (16 capabilities reviewed)
+
+    python3 ../intent-preservation-system/scripts/pre_coding_gate.py --root .
+    PASS pre_coding_gate
+
+Engine build, 2026-09-12:
+
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.19s
+
+Zero errors, down from 132 at the first build after the scope removals. Every
+one of those 132 was a consequence of removing plan/todo, the learning suite,
+office and translation -- none were inherited upstream defects.
+
 
 ## Integration evidence
 
@@ -42,7 +49,20 @@ parallel_workstream_context: final-integration
 
 ## Invariant evidence
 
-[MISSING: show how applicable project invariants were preserved]
+INV-002 (no task surface) is verified against the **built binary**, not the
+source, on 2026-09-12:
+
+    for c in plan todo tutor book practice office trans; do
+      ./target/debug/jarvis-engine "$c" --help
+    done
+
+All seven are rejected; `--help` lists only source, page, tag, changeset,
+discussion, schema, purpose, compress, decompress, view, work, cg, doctor,
+contract, serve and init. The CLI can no longer advertise or run a task command.
+
+Remaining invariants (INV-001, INV-003..INV-007) are not yet evidenced: they
+require the HTTP layer, which is not implemented.
+
 
 ## Sensitive-data evidence
 

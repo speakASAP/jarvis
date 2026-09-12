@@ -9,6 +9,10 @@ linked from those task documents.
 - [ ] `TASK-001-bootstrap-service` - onboarding, integration decisions and
   infrastructure are complete. Implementation is in progress at step 5 of the
   execution plan.
+  - [x] Scope-removal cleanup - the engine compiles. 132 errors -> 0 over 10
+        build iterations; all 132 were consequences of the removals, none
+        inherited from upstream. INV-002 verified against the built binary:
+        plan, todo, tutor, book, practice, office and trans are all rejected.
   - [~] 5a schema port - PARTIAL. `migrations/0001_init.sql` (15 tables) and
         `0002_search.sql` (fts5 -> tsvector+GIN) are applied and exercised on a
         scratch database. They cover only `store/schema.rs`'s bootstrap.
