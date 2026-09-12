@@ -9,9 +9,15 @@ linked from those task documents.
 - [ ] `TASK-001-bootstrap-service` - onboarding, integration decisions and
   infrastructure are complete. Implementation is in progress at step 5 of the
   execution plan.
-  - [x] 5a schema port - `migrations/0001_init.sql` (15 tables) and
-        `0002_search.sql` (fts5 -> tsvector+GIN), both applied and exercised on
-        a scratch database, then dropped.
+  - [~] 5a schema port - PARTIAL. `migrations/0001_init.sql` (15 tables) and
+        `0002_search.sql` (fts5 -> tsvector+GIN) are applied and exercised on a
+        scratch database. They cover only `store/schema.rs`'s bootstrap.
+        The engine issues **54** `CREATE TABLE` statements in total:
+        `migrations.rs` 19, `schema.rs` 15, `temporal_memory.rs` 8,
+        `sync.rs` 7, `discussion.rs` 3, plus 2 more. Roughly 37 tables
+        (temporal memory, discussions, changesets, sync state, graph) are not
+        yet ported. Found by cross-checking table names referenced in engine SQL
+        against the migration files - do not assume 5a is finished.
   - [ ] 5b core CRUD - port the store's read/write paths off rusqlite.
   - [ ] 5c search - rewrite queries against tsvector; upstream used fts5 MATCH.
   - [ ] 5d versioning - replace the rusqlite `session` extension, which has no

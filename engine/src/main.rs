@@ -1,3 +1,6 @@
+// Removed from upstream: learning suite (tutor/book/practice), office and
+// translation are out of approved scope; plan/todo are excluded by INV-002.
+// See engine/VENDORING.md.
 mod agent;
 mod archive;
 mod artifacts;
@@ -11,11 +14,7 @@ mod external_graph;
 pub mod graph;
 mod import;
 #[path = "learning/mod.rs"]
-mod learning;
-mod learning_runtime;
-mod learning_schema;
 mod mcp;
-mod office;
 mod scope;
 mod secret_scan;
 pub mod segment;
@@ -24,8 +23,6 @@ mod store;
 mod sync;
 mod sync_git;
 pub mod tokenize;
-mod trans;
-mod trans_adapter;
 mod update;
 mod view;
 mod work;
