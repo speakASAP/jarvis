@@ -1559,14 +1559,14 @@ fn same_plugin_state(left: &PluginExportInventory, right: &PluginExportInventory
 
 fn plugin_runtime_ready(plugin: &str) -> Result<bool> {
     use crate::config::CapabilitySetting;
-    let enabled = crate::config::resolve_learning(plugin)?.setting == CapabilitySetting::Enabled;
-    let runtime = match plugin {
-        "tutor" => crate::learning_runtime::status(crate::learning_runtime::Plugin::Tutor)?,
-        "book" => crate::learning_runtime::status(crate::learning_runtime::Plugin::Book)?,
-        "practice" => crate::learning_runtime::status(crate::learning_runtime::Plugin::Practice)?,
-        _ => return Err(AppError::new("sync_plugin_invalid", "unknown fixed plugin")),
-    };
-    Ok(enabled && runtime["installed"] == true)
+    // The tutor/book/practice plugins are removed here, so no fixed plugin is
+    // ever ready. resolve_learning is still consulted so a configuration error
+    // surfaces rather than being masked by this.
+    let _enabled = crate::config::resolve_learning(plugin)?.setting == CapabilitySetting::Enabled;
+    match plugin {
+        "tutor" | "book" | "practice" => Ok(false),
+        _ => Err(AppError::new("sync_plugin_invalid", "unknown fixed plugin")),
+    }
 }
 
 fn ensure_live_plugin_export(
@@ -3257,33 +3257,10 @@ fn materialize_plugin_blobs(plugin_id: &str, source: &Path, root: &Path) -> Resu
 }
 
 fn run_plugin_status(plugin_id: &str) -> Result<()> {
-    let status = match plugin_id {
-        "tutor" => crate::learning_runtime::status(crate::learning_runtime::Plugin::Tutor)?,
-        "book" => crate::learning_runtime::status(crate::learning_runtime::Plugin::Book)?,
-        "practice" => crate::learning_runtime::status(crate::learning_runtime::Plugin::Practice)?,
-        _ => return Err(AppError::new("sync_plugin_invalid", "unknown fixed plugin")),
-    };
-    if status["installed"] != true {
-        return Err(AppError::new(
-            "learning_runtime_missing",
-            format!("{plugin_id} runtime is not installed"),
-        ));
-    }
-    let runtime = status["runtime"]
-        .as_str()
-        .ok_or_else(|| AppError::new("sync_plugin_invalid", "runtime path is invalid"))?;
-    let output = Command::new(Path::new(runtime).join(format!("lwc-{plugin_id}")))
-        .arg("status")
-        .env("LWC_PLUGIN_SKIP_UPDATE", "1")
-        .env("LWC_PLUGIN_NO_BACKGROUND", "1")
-        .output()?;
-    if !output.status.success() {
-        return Err(AppError::new(
-            "sync_plugin_materialize_failed",
-            String::from_utf8_lossy(&output.stderr).into_owned(),
-        ));
-    }
-    Ok(())
+    // tutor/book/practice are removed here, so there is no fixed plugin whose
+    // status could be reported.
+    let _ = plugin_id;
+    return Err(AppError::new("sync_plugin_invalid", "unknown fixed plugin"));
 }
 
 fn record_ready_plugin_receipt(
@@ -3292,25 +3269,10 @@ fn record_ready_plugin_receipt(
     session_id: &str,
     export: &PluginExportInventory,
 ) -> Result<()> {
-    let plugin = match plugin_id {
-        "tutor" => crate::learning::Plugin::Tutor,
-        "book" => crate::learning::Plugin::Book,
-        "practice" => crate::learning::Plugin::Practice,
-        _ => return Err(AppError::new("sync_plugin_invalid", "unknown fixed plugin")),
-    };
-    let tx = connection.transaction_with_behavior(rusqlite::TransactionBehavior::Immediate)?;
-    crate::learning::record_sync_receipt(
-        &tx,
-        plugin,
-        session_id,
-        export.revision as i64,
-        export.revision as i64,
-        &export.logical_hash,
-        "ready",
-    )
-    .map_err(|error| AppError::new(error.code(), error.message()))?;
-    tx.commit()?;
-    Ok(())
+    // No fixed plugin exists here (tutor/book/practice removed), so there is
+    // never a ready-plugin receipt to record.
+    let _ = (connection, plugin_id, session_id, export);
+    Err(AppError::new("sync_plugin_invalid", "unknown fixed plugin"))
 }
 
 fn valid_plugin_artifact_relative(path: &str) -> bool {

@@ -1,6 +1,6 @@
 use crate::{
     codegraph,
-    config::{self, GraphSetting, MemorySetting, OfficeSetting, TransSetting},
+    config::{self, GraphSetting, MemorySetting, TransSetting},
     error::{AppError, Result},
     scope::{Scope, StorePath, init_store_path, resolve_read_store_paths},
     store::{PageRecord, Store, TagAutoloadPolicy, TagPageIdentity},
@@ -462,37 +462,9 @@ fn prompt_readiness(
     if Instant::now() >= deadline {
         return value;
     }
-    if intents.office && !intents.trans {
-        value["office"] = match (config::resolve_office(), crate::office::status()) {
-            (Ok(office), Ok(status)) => {
-                let enabled = office.setting == OfficeSetting::Officecli;
-                json!({
-                    "setting": office.setting,
-                    "origin": office.origin,
-                    "enabled": enabled,
-                    "runtime_installed": status["installed"],
-                    "ready": enabled && status["installed"].as_bool().unwrap_or(false),
-                    "requires_consent": !enabled,
-                })
-            }
-            (Err(error), _) | (_, Err(error)) => {
-                json!({"ready": false, "error_code": error.code})
-            }
-        };
-    }
+    // office status removed: document conversion is out of approved scope.
 
-    for (requested, plugin) in [
-        (intents.tutor, crate::learning_runtime::Plugin::Tutor),
-        (intents.book, crate::learning_runtime::Plugin::Book),
-        (intents.practice, crate::learning_runtime::Plugin::Practice),
-    ] {
-        if requested {
-            if Instant::now() >= deadline {
-                return value;
-            }
-            value[plugin.id()] = learning_readiness(plugin)
-                .unwrap_or_else(|error| json!({"ready": false, "error_code": error.code}));
-        }
+    // tutor/book/practice readiness removed: out of approved scope.
     }
 
     let todo_enabled = if intents.todo {
@@ -762,17 +734,7 @@ fn readiness_for_store(
     let memory_enabled = memory.setting == MemorySetting::Enabled;
     let document_graph_needs_consent = !document_graph_enabled;
     let code_graph_needs_consent = !code_graph_initialized;
-    let office = config::resolve_office()?;
-    let office_status = crate::office::status()?;
-    ensure_hook_deadline(deadline)?;
-    let office_enabled = office.setting == OfficeSetting::Officecli;
-    let office_runtime_installed = office_status["installed"].as_bool().unwrap_or(false);
-    let tutor = learning_readiness(crate::learning_runtime::Plugin::Tutor)?;
-    ensure_hook_deadline(deadline)?;
-    let book = learning_readiness(crate::learning_runtime::Plugin::Book)?;
-    ensure_hook_deadline(deadline)?;
-    let practice = learning_readiness(crate::learning_runtime::Plugin::Practice)?;
-    ensure_hook_deadline(deadline)?;
+    // office/tutor/book/practice readiness removed: out of approved scope.
     let todo_enabled =
         config::resolve_todo("project", &store.path)?.setting == config::CapabilitySetting::Enabled;
     let plan_enabled =
@@ -841,22 +803,6 @@ fn readiness_for_store(
             "status": "lwc memory status",
             "maintain": "lwc memory maintain",
         },
-        "office": {
-            "setting": office.setting,
-            "origin": office.origin,
-            "enabled": office_enabled,
-            "runtime_installed": office_runtime_installed,
-            "runtime_health": office_status["runtime_health"],
-            "version": office_status["version"],
-            "ready": office_enabled && office_runtime_installed,
-            "requires_consent": !office_enabled,
-            "configure": "lwc --scope global config set --office officecli",
-            "disable": "lwc --scope global config set --office disabled",
-            "command": "lwc office COMMAND ...",
-        },
-        "tutor": tutor,
-        "book": book,
-        "practice": practice,
         "agent_integration": {
             "check": "lwc agent status --target auto --location global",
             "install": "lwc agent install",
@@ -981,26 +927,6 @@ fn plan_hook_readiness(
     Ok(state)
 }
 
-fn learning_readiness(plugin: crate::learning_runtime::Plugin) -> Result<Value> {
-    let config = config::resolve_learning(plugin.id())?;
-    let status = crate::learning_runtime::status(plugin)?;
-    let enabled = config.setting == config::CapabilitySetting::Enabled;
-    let installed = status["installed"].as_bool().unwrap_or(false);
-    Ok(json!({
-        "setting": config.setting,
-        "origin": config.origin,
-        "enabled": enabled,
-        "runtime_installed": installed,
-        "runtime_health": status["runtime_health"],
-        "version": status["version"],
-        "data_present": status["data_present"],
-        "ready": enabled && installed,
-        "requires_consent": !enabled,
-        "configure": format!("lwc --scope global config set --{} enabled", plugin.id()),
-        "disable": format!("lwc --scope global config set --{} disabled", plugin.id()),
-        "command": format!("lwc {} COMMAND ...", plugin.id()),
-    }))
-}
 
 fn sync_readiness(store_path: &Path, deadline: Option<Instant>) -> Option<Value> {
     if deadline.is_some_and(|deadline| Instant::now() >= deadline) {
