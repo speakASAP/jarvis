@@ -100,7 +100,19 @@ change) because LLM output is not bit-deterministic.
 2. Define the PostgreSQL schema and generate the initial migration offline.
 3. Build the HTTP layer with an explicit route table; omit plan/todo entirely.
 4. Apply the auth guard per route, allowing only `/health` unauthenticated.
-5. Replace local-only persistence with PostgreSQL and MinIO adapters.
+5. Port the store layer from SQLite to PostgreSQL (owner decision 2026-09-12).
+   Measured scope after dropping the learning suite (11,341 LOC, not exposed) and
+   plan/todo (1,338 LOC, INV-002): ~25,334 LOC across the wiki store.
+   Known hard spots, each needing an explicit replacement rather than a
+   translation:
+   - 5 `fts5` virtual tables -> `tsvector` + GIN, and every search query rewritten
+   - rusqlite `session` (changeset version history) -> no analogue; replace with
+     explicit row versioning
+   - 102 `PRAGMA`, 17 `json_extract` -> `jsonb` operators, 7 `WITHOUT ROWID`,
+     4 `AUTOINCREMENT` -> identity columns
+   This is a fork of the upstream engine: upstream upgrades become manual merges.
+   Sequenced as reviewable increments (5a schema, 5b core CRUD, 5c search,
+   5d versioning), each with tests, rather than one commit.
 6. Route all model calls through ai-microservice; hold no provider key.
 7. Add logging, notifications and `/health` with Kubernetes probes.
 8. Write tests including fault injection and route enumeration.
