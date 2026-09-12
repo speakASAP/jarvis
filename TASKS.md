@@ -68,6 +68,19 @@ The `PATH` override is required: `rust:1-slim` does not put cargo on the
 default PATH, so a bare `cargo` reports "not found" and looks like a missing
 toolchain. cargo 1.98.1 / rustc 1.98.1.
 
+### Traps hit while porting
+
+- **Removing a `mod x;` line can silently rebind its attribute.** Upstream had
+  `#[path = "learning/mod.rs"]` on the line above `mod learning;`. Deleting only
+  the `mod` line left the attribute attached to the next item, `mod mcp;`, which
+  would have compiled `mcp` from the learning file. Delete the attribute with
+  its item, and grep `#[path` afterwards.
+- **The vendored store is one compilation unit** assembled with `include!()`,
+  not separate modules, so a deleted file breaks `store/mod.rs` at its include
+  line rather than at a use site.
+- **`cargo build` twice in one shell command doubles a ~10 minute build** and
+  the first run's stale errors are what land in the log. Run it once.
+
 ### Decisions that are not visible in the diff
 
 - **PostgreSQL over SQLite-on-a-PVC** was the owner's explicit choice on

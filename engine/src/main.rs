@@ -13,7 +13,6 @@ mod error;
 mod external_graph;
 pub mod graph;
 mod import;
-#[path = "learning/mod.rs"]
 mod mcp;
 mod scope;
 mod secret_scan;
