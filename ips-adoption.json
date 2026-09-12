@@ -35,7 +35,7 @@
       "decision": "required",
       "reason": "Wiki holds synthesized ecosystem knowledge; read and ingest must be identity-scoped, not public",
       "contract": "RS256 service identity + user roles per SERVICE_IDENTITY_CONSUMER_STANDARD.md",
-      "configuration": "AUTH_SERVICE_URL, JARVIS_CLIENT_ID, JARVIS_CLIENT_SECRET via ESO",
+      "configuration": "AUTH_SERVICE_URL (configmap), AUTH_SERVICE_TOKEN via ESO; the application is identified by its registered name and domain, not a client id/secret",
       "failureMode": "Requests rejected with 401 when token invalid or Auth unreachable; no anonymous fallback",
       "validation": "Unauthenticated request to /query returns 401; valid service token returns 200"
     },

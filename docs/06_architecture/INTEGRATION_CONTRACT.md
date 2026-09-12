@@ -17,7 +17,7 @@ the human-readable architecture and contract links.
 
 | Capability | Component | Decision | Contract/API/event | Configuration | Failure mode | Validation evidence |
 | --- | --- | --- | --- | --- | --- | --- |
-| Auth | `auth-microservice` | required | RS256 service identity + user roles per SERVICE_IDENTITY_CONSUMER_STANDARD.md | AUTH_SERVICE_URL, JARVIS_CLIENT_ID, JARVIS_CLIENT_SECRET via ESO | Requests rejected with 401 when token invalid or Auth unreachable; no anonymous fallback | Unauthenticated request to /query returns 401; valid service token returns 200 |
+| Auth | `auth-microservice` | required | RS256 service identity + user roles per SERVICE_IDENTITY_CONSUMER_STANDARD.md | AUTH_SERVICE_URL (configmap), AUTH_SERVICE_TOKEN via ESO; app identified by registered name+domain, no client secret | Requests rejected with 401 when token invalid or Auth unreachable; no anonymous fallback | Unauthenticated request to /query returns 401; valid service token returns 200 |
 | PostgreSQL | `db-server-postgres` | required | Dedicated database jarvis with least-privilege role jarvis_app | DATABASE_URL via ESO from secret/prod/jarvis | Service fails readiness when database unreachable; never starts with an empty fallback store | Readiness probe fails on bad DSN; migrations apply with migrate deploy |
 | Redis | `db-server-redis` | not-applicable | not-applicable | not-applicable | not-applicable | not-applicable |
 | Logging | `logging-microservice` | required | HTTP POST to logging-microservice with service=jarvis | LOGGING_SERVICE_URL from configmap | Log delivery is fire-and-forget and must never throw into the request path; failures degrade to stderr | Ingest and query operations appear in logging-microservice for service jarvis |
