@@ -75,6 +75,11 @@ toolchain. cargo 1.98.1 / rustc 1.98.1.
   the `mod` line left the attribute attached to the next item, `mod mcp;`, which
   would have compiled `mcp` from the learning file. Delete the attribute with
   its item, and grep `#[path` afterwards.
+- **A syntax error masks every other error.** After removing the office and
+  learning blocks the count fell 89 -> 1, which looked like near-success. The
+  one error was `unexpected closing delimiter` from a `}` my removal orphaned;
+  the parser stopped there, so the remaining errors were simply not reported.
+  Treat a sudden collapse to one syntax error as "unknown", not "almost done".
 - **The vendored store is one compilation unit** assembled with `include!()`,
   not separate modules, so a deleted file breaks `store/mod.rs` at its include
   line rather than at a use site.

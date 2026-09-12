@@ -465,7 +465,6 @@ fn prompt_readiness(
     // office status removed: document conversion is out of approved scope.
 
     // tutor/book/practice readiness removed: out of approved scope.
-    }
 
     let todo_enabled = if intents.todo {
         if Instant::now() >= deadline {
@@ -510,40 +509,13 @@ fn prompt_readiness(
     } else {
         None
     };
-    let context_bound = context.id().and_then(|context_id| match &hook_store {
-        Some(Ok(store)) => store.agent_tracking_bound(context_id).ok(),
-        Some(Err(_)) | None => None,
-    });
+    // Agent tracking reads agent_todo_tracks / agent_plan_tracks / todo_items,
+    // which the task surface removal took with it (INV-002), so no context is
+    // ever bound here.
+    let context_bound: Option<bool> = None;
     value["agent_context"] = context.readiness(context_bound);
-    if todo_enabled && context_bound == Some(true) {
-        value["todo"] = match &hook_store {
-            Some(Ok(store)) => match store
-                .tracked_open_todo_readiness(context.id().expect("bound context has an ID"), 3)
-            {
-                Ok((open, reminders, omitted)) => {
-                    let mut state = json!({"ready": true, "open": open});
-                    if !reminders.is_empty() {
-                        state["reminders"] = json!(reminders);
-                        state["omitted_reminders"] = json!(omitted);
-                    }
-                    state
-                }
-                Err(error) => {
-                    json!({"ready": false, "error_code": error.code})
-                }
-            },
-            Some(Err(error)) => json!({"ready": false, "error_code": error.code}),
-            None => json!({"ready": false}),
-        };
-    }
-    if plan_enabled && context_bound == Some(true) {
-        value["plan"] = match &hook_store {
-            Some(Ok(store)) => plan_hook_readiness(store, false, context.id())
-                .unwrap_or_else(|error| json!({"ready": false, "error_code": error.code})),
-            Some(Err(error)) => json!({"ready": false, "error_code": error.code}),
-            None => json!({"ready": false}),
-        };
-    }
+    // todo and plan readiness blocks removed: context_bound is never
+    // Some(true) now that agent tracking is gone (INV-002).
     if intents.sync
         && let Some(sync) = store
             .as_ref()
@@ -621,29 +593,14 @@ fn apply_scoped_context_work(
             Err(_) if scope == Scope::All => continue,
             Err(error) => return Err(error),
         };
-        bound |= store.agent_tracking_bound(context_id)?;
         if let Ok(current) = store.discussion_read("", context_id, "current", 0, 20)
             && current["id"].is_string()
         {
             value["discussion"] = json!({"scope":scope_name,"current":current,"resume":format!("lwc --scope {scope_name} discussion current --context {context_id}")});
         }
-        if config::resolve_plan(scope_name, &path.path)?.setting
-            == config::CapabilitySetting::Enabled
-        {
-            plan_enabled = true;
-            if let Some(plan) = store.plan_tracking_for_context(context_id)? {
-                plans.push(plan);
-            }
-        }
-        if config::resolve_todo(scope_name, &path.path)?.setting
-            == config::CapabilitySetting::Enabled
-        {
-            todo_enabled = true;
-            let (open, reminders, omitted) = store.tracked_open_todo_readiness(context_id, 3)?;
-            todo_open += open;
-            todo_omitted += omitted;
-            todo_reminders.extend(reminders);
-        }
+        // Plan and todo tracking removed (INV-002). This function already
+        // strips "plan" and "todo" from its output below, so nothing that
+        // survives depended on gathering them.
     }
     value["agent_context"] = context.readiness(Some(bound));
     let object = value.as_object_mut().expect("readiness object");
@@ -808,68 +765,15 @@ fn readiness_for_store(
             "install": "lwc agent install",
         },
     });
-    let context_bound = context.and_then(|context| {
-        context.id().and_then(|context_id| match &hook_store {
-            Some(Ok(store)) => store.agent_tracking_bound(context_id).ok(),
-            Some(Err(_)) | None => None,
-        })
-    });
+    // Agent tracking removed (INV-002): no context is ever bound.
+    let context_bound: Option<bool> = None;
     if let Some(context) = context {
         value["agent_context"] = context.readiness(context_bound);
     }
     if let Some(sync) = sync_readiness(&store.path, deadline) {
         value["sync"] = sync;
     }
-    if todo_enabled && context.is_none_or(|_| context_bound == Some(true)) {
-        value["todo"] = match &hook_store {
-            Some(Ok(store)) => match context.and_then(|context| context.id()) {
-                Some(context_id) => match store.tracked_open_todo_readiness(context_id, 3) {
-                    Ok((open, reminders, omitted)) => {
-                        let mut state = json!({
-                            "ready": true,
-                            "open": open,
-                            "list": format!("lwc todo list --context {context_id}"),
-                        });
-                        if !reminders.is_empty() {
-                            state["reminders"] = json!(reminders);
-                            state["omitted_reminders"] = json!(omitted);
-                        }
-                        state
-                    }
-                    Err(error) => json!({"ready":false,"error_code":error.code}),
-                },
-                None => match (store.open_todo_count(), store.due_todo_reminders(3)) {
-                    (Ok(open), Ok((reminders, omitted))) => {
-                        let mut state = json!({
-                            "ready": true,
-                            "open": open,
-                            "list": "lwc todo list --limit 20",
-                        });
-                        if !reminders.is_empty() {
-                            state["reminders"] = json!(reminders);
-                            state["omitted_reminders"] = json!(omitted);
-                        }
-                        state
-                    }
-                    (Err(error), _) | (_, Err(error)) => {
-                        json!({"ready":false,"error_code":error.code})
-                    }
-                },
-            },
-            Some(Err(error)) => json!({"ready":false,"error_code":error.code}),
-            None => json!({"ready":false}),
-        };
-    }
-    if plan_enabled && context.is_none_or(|_| context_bound == Some(true)) {
-        value["plan"] = match &hook_store {
-            Some(Ok(store)) => {
-                plan_hook_readiness(store, true, context.and_then(|context| context.id()))
-                    .unwrap_or_else(|error| json!({"ready":false,"error_code":error.code}))
-            }
-            Some(Err(error)) => json!({"ready":false,"error_code":error.code}),
-            None => json!({"ready":false}),
-        };
-    }
+    // todo and plan readiness removed (INV-002): context_bound is never Some(true).
     if let Some(authorization) = graph_authorization(
         document_graph_needs_consent,
         code_graph_needs_consent,
@@ -900,32 +804,6 @@ fn open_store_for_hook_until(scope: &str, path: &Path, deadline: Instant) -> Res
     Ok(store)
 }
 
-fn plan_hook_readiness(
-    store: &Store,
-    include_current: bool,
-    context: Option<&str>,
-) -> Result<Value> {
-    let tracking = match context {
-        Some(context) => store.plan_tracking_for_context(context)?,
-        None => store.plan_tracking()?,
-    };
-    let active = if context.is_some() {
-        i64::from(tracking.is_some())
-    } else {
-        store.active_plan_count()?
-    };
-    let mut state = json!({"ready": true, "active": active});
-    if include_current {
-        state["current"] = match context {
-            Some(context) => json!(format!("lwc plan current --context {context}")),
-            None => json!("lwc plan current --limit 20"),
-        };
-    }
-    if let Some(tracking) = tracking {
-        state["tracking"] = tracking;
-    }
-    Ok(state)
-}
 
 
 fn sync_readiness(store_path: &Path, deadline: Option<Instant>) -> Option<Value> {

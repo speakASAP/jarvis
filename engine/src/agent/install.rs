@@ -121,16 +121,6 @@ const SKILL_FILES: &[(&str, &[u8])] = &[
         include_bytes!("../../skills/using-lwc/scripts/install-lwc.sh"),
     ),
 ];
-const TODO_SKILL_FILES: &[(&str, &[u8])] = &[
-    (
-        "SKILL.md",
-        include_bytes!("../../skills/using-todo/SKILL.md"),
-    ),
-    (
-        "agents/openai.yaml",
-        include_bytes!("../../skills/using-todo/agents/openai.yaml"),
-    ),
-];
 const DISCUSSION_SKILL_FILES: &[(&str, &[u8])] = &[
     (
         "SKILL.md",
@@ -141,16 +131,6 @@ const DISCUSSION_SKILL_FILES: &[(&str, &[u8])] = &[
         include_bytes!("../../skills/using-discussion/agents/openai.yaml"),
     ),
 ];
-const PLAN_SKILL_FILES: &[(&str, &[u8])] = &[
-    (
-        "SKILL.md",
-        include_bytes!("../../skills/using-plan/SKILL.md"),
-    ),
-    (
-        "agents/openai.yaml",
-        include_bytes!("../../skills/using-plan/agents/openai.yaml"),
-    ),
-];
 const SYNC_SKILL_FILES: &[(&str, &[u8])] = &[
     (
         "SKILL.md",
@@ -159,36 +139,6 @@ const SYNC_SKILL_FILES: &[(&str, &[u8])] = &[
     (
         "agents/openai.yaml",
         include_bytes!("../../skills/using-sync/agents/openai.yaml"),
-    ),
-];
-const TUTOR_SKILL_FILES: &[(&str, &[u8])] = &[
-    (
-        "SKILL.md",
-        include_bytes!("../../skills/using-tutor/SKILL.md"),
-    ),
-    (
-        "agents/openai.yaml",
-        include_bytes!("../../skills/using-tutor/agents/openai.yaml"),
-    ),
-];
-const BOOK_SKILL_FILES: &[(&str, &[u8])] = &[
-    (
-        "SKILL.md",
-        include_bytes!("../../skills/using-book/SKILL.md"),
-    ),
-    (
-        "agents/openai.yaml",
-        include_bytes!("../../skills/using-book/agents/openai.yaml"),
-    ),
-];
-const PRACTICE_SKILL_FILES: &[(&str, &[u8])] = &[
-    (
-        "SKILL.md",
-        include_bytes!("../../skills/using-practice/SKILL.md"),
-    ),
-    (
-        "agents/openai.yaml",
-        include_bytes!("../../skills/using-practice/agents/openai.yaml"),
     ),
 ];
 
@@ -1253,17 +1203,15 @@ pub(super) fn all_paths(paths: &TargetPaths) -> Vec<PathBuf> {
     paths_out
 }
 
+// using-todo, using-plan, using-tutor, using-book and using-practice are not
+// vendored: the task surface is excluded by INV-002 and the learning suite is
+// out of scope, so their skill docs must not be installed either.
 fn skill_files(root: &Path) -> impl Iterator<Item = (PathBuf, &'static [u8])> {
     let parent = root.parent().unwrap_or(root);
     [
         (root.to_owned(), SKILL_FILES),
-        (parent.join("using-todo"), TODO_SKILL_FILES),
-        (parent.join("using-plan"), PLAN_SKILL_FILES),
         (parent.join("using-discussion"), DISCUSSION_SKILL_FILES),
         (parent.join("using-sync"), SYNC_SKILL_FILES),
-        (parent.join("using-tutor"), TUTOR_SKILL_FILES),
-        (parent.join("using-book"), BOOK_SKILL_FILES),
-        (parent.join("using-practice"), PRACTICE_SKILL_FILES),
     ]
     .into_iter()
     .flat_map(|(dir, files)| {
