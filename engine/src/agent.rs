@@ -502,13 +502,9 @@ fn prompt_readiness(
     } else {
         false
     };
-    let hook_store = if wiki_initialized && (todo_enabled || plan_enabled) {
-        store
-            .as_ref()
-            .map(|store| open_store_for_hook_until("project", &store.path, deadline))
-    } else {
-        None
-    };
+    // hook_store removed: it was opened only for the plan/todo readiness
+    // blocks, which are gone (INV-002). Opening a store for nothing would cost
+    // a connection on every hook.
     // Agent tracking reads agent_todo_tracks / agent_plan_tracks / todo_items,
     // which the task surface removal took with it (INV-002), so no context is
     // ever bound here.
@@ -664,19 +660,9 @@ fn readiness_for_store(
         config::resolve_todo("project", &store.path)?.setting == config::CapabilitySetting::Enabled;
     let plan_enabled =
         config::resolve_plan("project", &store.path)?.setting == config::CapabilitySetting::Enabled;
-    let hook_store = if wiki_initialized
-        && ((todo_enabled || plan_enabled) || context.and_then(|context| context.id()).is_some())
-    {
-        Some(match deadline {
-            Some(deadline) => open_store_for_hook_until("project", &store.path, deadline),
-            None => Store::open_for_hook("project", &store.path).and_then(|store| {
-                store.begin_hook_snapshot()?;
-                Ok(store)
-            }),
-        })
-    } else {
-        None
-    };
+    // hook_store removed: it was opened only for the plan/todo readiness
+    // blocks, which are gone (INV-002). Opening a store for nothing would cost
+    // a connection on every hook.
 
     let mut value = json!({
         "wiki": {

@@ -1161,16 +1161,7 @@ fn run(cli: Cli) -> Result<Value> {
                 }
             }
         }
-        Command::Trans {
-            file,
-            output,
-            allow_external_source,
-        } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "trans")?;
-            ensure_scope_supported(cli.scope, false, "trans")?;
-            let store_path = resolve_live_store_path(cli.scope, &cwd)?;
-            trans::run(&store_path, &cwd, &file, &output, allow_external_source)
-        }
+        // Trans arm removed: document translation is out of approved scope.
         Command::Graph { command } => {
             ensure_scope_supported(cli.scope, false, "graph")?;
             let store_path =

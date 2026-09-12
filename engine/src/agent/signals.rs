@@ -1811,7 +1811,8 @@ pub(crate) fn stop_plan(
         return Ok(None);
     };
     let mut signals = Vec::new();
-    let mut continuing_plans = Vec::new();
+    // Plan tracking removed (INV-002): nothing is ever pushed here.
+    let continuing_plans: Vec<serde_json::Value> = Vec::new();
     for path in resolve_read_store_paths(scope, cwd, true)? {
         let scope_name = match path.scope {
             Scope::Project => "project",
