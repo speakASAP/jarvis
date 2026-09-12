@@ -217,26 +217,8 @@ enum Command {
         #[command(subcommand)]
         command: CgCommand,
     },
-    /// Run a read-only OfficeCLI command through LWC's pinned global runtime.
-    Office {
-        #[command(subcommand)]
-        command: OfficeCommand,
-    },
-    /// Use the optional Tutor learning capability.
-    Tutor {
-        #[command(subcommand)]
-        command: LearningPluginCommand,
-    },
-    /// Use the optional sequential Book reading capability.
-    Book {
-        #[command(subcommand)]
-        command: LearningPluginCommand,
-    },
-    /// Use the optional Practice, question-bank, and review capability.
-    Practice {
-        #[command(subcommand)]
-        command: LearningPluginCommand,
-    },
+    // Office, Tutor, Book and Practice variants removed: document conversion
+    // and the learning suite are out of approved scope.
     /// Start a foreground, loopback-only, read-only project viewer.
     #[command(
         long_about = "Start the read-only LWC viewer on 127.0.0.1. The viewer never refreshes, migrates, or mutates project state."
@@ -295,10 +277,8 @@ enum Command {
         #[command(subcommand)]
         command: TagCommand,
     },
-    /// Manage an independent durable backlog of deferred work.
-    Todo { #[command(subcommand)] command: TodoCommand },
-    /// Manage an independent durable current execution plan.
-    Plan { #[command(subcommand)] command: PlanCommand },
+    // Todo and Plan variants removed: jarvis exposes no task surface and
+    // RunLayer is the sole task authority (INV-002).
     /// Compress one exact Wiki into a portable plaintext memory archive.
     Compress {
         /// Archive output path. Defaults to the selected Wiki's memory.lwc.zst.
@@ -395,21 +375,7 @@ enum Command {
         #[command(subcommand)]
         command: ConfigCommand,
     },
-    /// Convert one authorized local file with the configured trans engine.
-    #[command(
-        long_about = "Run the resolved anydoc or markitdown engine against one authorized local file and write the UTF-8 Markdown result to an explicit new output path.\n\nThis command does not add sources, pages, citations, or operation-log entries.",
-        after_help = "Examples:\n  lwc trans docs/report.docx --output out/report.md\n  lwc trans ../shared/file.pdf --output out/file.md --allow-external-source"
-    )]
-    Trans {
-        /// Existing local file to convert.
-        file: PathBuf,
-        /// Explicit destination path; must not already exist.
-        #[arg(long)]
-        output: PathBuf,
-        /// Permit a project input that resolves outside the active project root.
-        #[arg(long)]
-        allow_external_source: bool,
-    },
+    // Trans variant removed: document translation is out of approved scope.
     /// Explore, explain, verify, and maintain the selected document graph.
     #[command(
         long_about = "Explore current Page and Source documents, wikilinks, citations, and explicit semantic relationships in the selected Grafeo or SurrealDB graph. Graph storage is disabled by default; enabled rebuilds and updates commit one document before the next.",
@@ -549,21 +515,7 @@ enum CgCommand {
     Run(Vec<OsString>),
 }
 
-#[derive(Subcommand)]
-#[command(disable_help_subcommand = true)]
-enum OfficeCommand {
-    /// Forward a read-only command through the pinned OfficeCLI runtime.
-    #[command(external_subcommand)]
-    Run(Vec<OsString>),
-}
 
-#[derive(Subcommand)]
-#[command(disable_help_subcommand = true)]
-enum LearningPluginCommand {
-    /// Forward a command through the fixed plugin runtime.
-    #[command(external_subcommand)]
-    Run(Vec<OsString>),
-}
 
 #[derive(Subcommand)]
 enum MemoryCommand {
@@ -714,39 +666,7 @@ enum TagCommand {
     List,
 }
 
-#[derive(Subcommand)]
-enum TodoCommand {
-    Add { title:Option<String>, #[arg(long="tag")] tags:Vec<String>, #[arg(long)] cue:Option<String>, #[arg(long)] detail:Option<String>, #[arg(long)] parent:Option<String>, #[arg(long)] target_at:Option<String>, #[arg(long)] request_id:Option<String>, #[arg(long,value_name="JSON|-|@PATH")] json:Option<String> },
-    List { #[arg(long,value_parser=["open","done","cancelled"])] state:Option<String>, #[arg(long)] tag:Option<String>, #[arg(long)] parent:Option<String>, #[arg(long)] context:Option<String>, #[arg(long,default_value_t=100)] limit:usize, #[arg(long,default_value_t=0)] offset:usize },
-    Search { query:String, #[arg(long,value_parser=["open","done","cancelled"])] state:Option<String>, #[arg(long)] tag:Option<String>, #[arg(long)] parent:Option<String>, #[arg(long,default_value_t=100)] limit:usize, #[arg(long,default_value_t=0)] offset:usize },
-    Show { todo_id:String },
-    Update { todo_id:String, #[arg(long)] if_revision:i64, #[arg(long)] title:Option<String>, #[arg(long,conflicts_with="clear_cue")] cue:Option<String>, #[arg(long)] clear_cue:bool, #[arg(long,conflicts_with="clear_detail")] detail:Option<String>, #[arg(long)] clear_detail:bool, #[arg(long,conflicts_with="clear_target_at")] target_at:Option<String>, #[arg(long)] clear_target_at:bool, #[arg(long="add-tag")] add_tags:Vec<String>, #[arg(long="remove-tag")] remove_tags:Vec<String> },
-    Done { todo_id:String, #[arg(long)] if_revision:i64, #[arg(long)] result:String },
-    Cancel { todo_id:String, #[arg(long)] if_revision:i64, #[arg(long)] reason:String },
-    Reopen { todo_id:String, #[arg(long)] if_revision:i64 },
-    Track { todo_id:String, #[arg(long)] context:String },
-    Untrack { todo_id:String, #[arg(long)] context:String },
-}
 
-#[derive(Subcommand)]
-enum PlanCommand {
-    /// Inspect immutable revision history, including scope changes and dispositions.
-    History { plan_id: String },
-    /// Read-only comparison with relevant events and an optional Markdown plan; never advances state.
-    Reconcile { plan_id: String, #[arg(long)] from: Option<PathBuf>, #[arg(long, default_value_t=5)] limit: usize },
-    Create { title:Option<String>, #[arg(long)] objective:Option<String>, #[arg(long)] done_when:Option<String>, #[arg(long="tag")] tags:Vec<String>, #[arg(long="constraint")] constraints:Vec<String>, #[arg(long="step")] steps:Vec<String>, #[arg(long)] request_id:Option<String>, #[arg(long,value_name="JSON|-|@PATH")] json:Option<String> },
-    Current { #[arg(long)] context:Option<String>, #[arg(long)] tag:Option<String>, #[arg(long,default_value_t=100)] limit:usize, #[arg(long,default_value_t=0)] offset:usize },
-    List { #[arg(long,value_parser=["active","completed","abandoned"])] state:Option<String>, #[arg(long)] tag:Option<String>, #[arg(long,default_value_t=100)] limit:usize, #[arg(long,default_value_t=0)] offset:usize },
-    Search { query:String, #[arg(long,value_parser=["active","completed","abandoned"])] state:Option<String>, #[arg(long)] tag:Option<String>, #[arg(long,default_value_t=100)] limit:usize, #[arg(long,default_value_t=0)] offset:usize },
-    Show { plan_id:String }, Brief { plan_id:String },
-    Advance { plan_id:String, #[arg(long)] if_revision:i64, #[arg(long)] done:String, #[arg(long)] result:String, #[arg(long)] next:Option<String> },
-    Block { plan_id:String, #[arg(long)] if_revision:i64, #[arg(long)] step:String, #[arg(long)] reason:String },
-    Revise { plan_id:String, #[arg(long)] if_revision:i64, #[arg(long)] reason:String, #[arg(long,value_name="JSON|-|@PATH")] json:String },
-    Complete { plan_id:String, #[arg(long)] if_revision:i64, #[arg(long)] result:String, #[arg(long)] evidence:String, #[arg(long)] done_when_checked:bool },
-    Abandon { plan_id:String, #[arg(long)] if_revision:i64, #[arg(long)] reason:String },
-    Track { plan_id:String, #[arg(long)] context:String },
-    Untrack { plan_id:String, #[arg(long)] context:String },
-}
 
 #[derive(Subcommand)]
 enum LoadCommand {

@@ -656,9 +656,12 @@ fn readiness_for_store(
     let document_graph_needs_consent = !document_graph_enabled;
     let code_graph_needs_consent = !code_graph_initialized;
     // office/tutor/book/practice readiness removed: out of approved scope.
-    let todo_enabled =
+    // Still resolved so a broken todo/plan capability config surfaces as an
+    // error here rather than being silently ignored; the values themselves are
+    // unused now that the readiness blocks are gone (INV-002).
+    let _todo_enabled =
         config::resolve_todo("project", &store.path)?.setting == config::CapabilitySetting::Enabled;
-    let plan_enabled =
+    let _plan_enabled =
         config::resolve_plan("project", &store.path)?.setting == config::CapabilitySetting::Enabled;
     // hook_store removed: it was opened only for the plan/todo readiness
     // blocks, which are gone (INV-002). Opening a store for nothing would cost

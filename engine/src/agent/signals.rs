@@ -913,7 +913,7 @@ fn graph_prompt_signals(readiness: &Value, intents: &IntentSet) -> Vec<Signal> {
             .into_iter()
             .collect();
     }
-    let mut signals = Vec::new();
+    let mut signals: Vec<Signal> = Vec::new();
     if intents.document_graph
         && let Some(signal) = document_graph_prompt_signal(readiness, document_missing)
     {
@@ -1810,7 +1810,8 @@ pub(crate) fn stop_plan(
     let Some(context) = context else {
         return Ok(None);
     };
-    let mut signals = Vec::new();
+    // Never pushed to now that plan tracking is gone (INV-002).
+    let signals: Vec<Signal> = Vec::new();
     // Plan tracking removed (INV-002): nothing is ever pushed here.
     let continuing_plans: Vec<serde_json::Value> = Vec::new();
     for path in resolve_read_store_paths(scope, cwd, true)? {
