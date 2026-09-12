@@ -18,8 +18,6 @@ fn run(cli: Cli) -> Result<Value> {
             | Command::View { .. }
             | Command::Trans { .. }
             | Command::Agent { .. }
-            | Command::Todo { .. }
-            | Command::Plan { .. }
             | Command::Discussion { .. }
             | Command::Compress { .. }
             | Command::Decompress { .. }
@@ -685,56 +683,8 @@ fn run(cli: Cli) -> Result<Value> {
                 }
             }
         }
-        Command::Todo { command } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "todo")?;
-            if cli.scope != Scope::All {
-                let path = resolve_live_store_path(cli.scope, &cwd)?;
-                require_capability("todo", &path)?;
-            }
-            match command {
-                TodoCommand::Add { title,tags,cue,detail,parent,target_at,request_id,json } => {
-                    ensure_scope_supported(cli.scope,false,"todo add")?; let path=resolve_live_store_path(cli.scope,&cwd)?;
-                    let input=if let Some(raw)=json { let raw=read_memory_json(&path,&cwd,&raw)?; serde_json::from_str::<store::TodoCreateInput>(&raw).map_err(|e|AppError::new("invalid_input",format!("invalid Todo JSON: {e}")))? } else { store::TodoCreateInput{title:title.ok_or_else(||AppError::new("invalid_input","title is required unless --json is used"))?,tags,cue,detail,parent_id:parent,target_at,request_id} };
-                    Store::open(scope_name(path.scope),&path.path)?.todo_add(input)
-                }
-                TodoCommand::List { state,tag,parent,context,limit,offset } => {
-                    if let Some(context)=context { ensure_scope_supported(cli.scope,false,"todo list --context")?; let path=resolve_live_store_path(cli.scope,&cwd)?; return Store::open_for_read(scope_name(path.scope),&path.path)?.tracked_todos(&context); }
-                    validate_limit(limit)?; let state=state.as_deref().or(Some("open")); let paths=resolve_live_read_store_paths(cli.scope,&cwd,true)?; let mut todos=Vec::new(); let mut enabled=false; for path in paths { if capability_enabled("todo",&path)? { enabled=true; todos.extend(Store::open_for_read(scope_name(path.scope),&path.path)?.todo_query(None,state,tag.as_deref(),parent.as_deref(),limit+offset,0)?); } } if !enabled { return Err(capability_disabled("todo")); } todos.sort_by(|a,b|b["updated_at"].as_str().cmp(&a["updated_at"].as_str()).then_with(||a["scope"].as_str().cmp(&b["scope"].as_str())).then_with(||a["id"].as_str().cmp(&b["id"].as_str()))); let todos=todos.into_iter().skip(offset).take(limit).collect::<Vec<_>>(); Ok(json!({"returned":todos.len(),"todos":todos}))
-                }
-                TodoCommand::Search { query,state,tag,parent,limit,offset } => { require_text("query",&query)?;validate_limit(limit)?;let paths=resolve_live_read_store_paths(cli.scope,&cwd,true)?;let mut todos=Vec::new();let mut enabled=false;for path in paths{if capability_enabled("todo",&path)?{enabled=true;todos.extend(Store::open_for_read(scope_name(path.scope),&path.path)?.todo_query(Some(&query),state.as_deref(),tag.as_deref(),parent.as_deref(),limit+offset,0)?)}}if !enabled{return Err(capability_disabled("todo"));}todos.sort_by(|a,b|b["updated_at"].as_str().cmp(&a["updated_at"].as_str()).then_with(||a["id"].as_str().cmp(&b["id"].as_str())));let todos=todos.into_iter().skip(offset).take(limit).collect::<Vec<_>>();Ok(json!({"returned":todos.len(),"todos":todos})) }
-                TodoCommand::Show { todo_id } => {ensure_scope_supported(cli.scope,false,"todo show")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open_for_read(scope_name(p.scope),&p.path)?.todo_show(&todo_id)}
-                TodoCommand::Update { todo_id,if_revision,title,cue,clear_cue,detail,clear_detail,target_at,clear_target_at,add_tags,remove_tags } => {ensure_scope_supported(cli.scope,false,"todo update")?;let p=resolve_live_store_path(cli.scope,&cwd)?;let input=store::TodoUpdateInput{title,cue:if clear_cue{Some(None)}else{cue.map(Some)},detail:if clear_detail{Some(None)}else{detail.map(Some)},target_at:if clear_target_at{Some(None)}else{target_at.map(Some)},add_tags,remove_tags};Store::open(scope_name(p.scope),&p.path)?.todo_update(&todo_id,if_revision,input)}
-                TodoCommand::Done { todo_id,if_revision,result } => {ensure_scope_supported(cli.scope,false,"todo done")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.todo_transition(&todo_id,if_revision,"done",Some(&result))}
-                TodoCommand::Cancel { todo_id,if_revision,reason } => {ensure_scope_supported(cli.scope,false,"todo cancel")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.todo_transition(&todo_id,if_revision,"cancelled",Some(&reason))}
-                TodoCommand::Reopen { todo_id,if_revision } => {ensure_scope_supported(cli.scope,false,"todo reopen")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.todo_transition(&todo_id,if_revision,"open",None)}
-                TodoCommand::Track { todo_id,context } => {ensure_scope_supported(cli.scope,false,"todo track")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.todo_track(&todo_id,&context)}
-                TodoCommand::Untrack { todo_id,context } => {ensure_scope_supported(cli.scope,false,"todo untrack")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.todo_untrack(&todo_id,&context)}
-            }
-        }
-        Command::Plan { command } => {
-            changeset::reject_selector(selected_changeset.as_deref(), "plan")?;
-            if cli.scope != Scope::All {
-                let path = resolve_live_store_path(cli.scope, &cwd)?;
-                require_capability("plan", &path)?;
-            }
-            match command {
-                PlanCommand::History { plan_id } => { ensure_scope_supported(cli.scope,false,"plan history")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open_for_read(scope_name(p.scope),&p.path)?.plan_history(&plan_id) }
-                PlanCommand::Reconcile { plan_id, from, limit } => { ensure_scope_supported(cli.scope,false,"plan reconcile")?;validate_limit(limit)?;let p=resolve_live_store_path(cli.scope,&cwd)?;let file = from.map(|path| read_memory_json(&p,&cwd,&format!("@{}",path.display()))).transpose()?;Store::open_for_read(scope_name(p.scope),&p.path)?.plan_reconcile(&plan_id,file.as_deref(),limit) }
-                PlanCommand::Create { title,objective,done_when,tags,constraints,steps,request_id,json } => {ensure_scope_supported(cli.scope,false,"plan create")?;let p=resolve_live_store_path(cli.scope,&cwd)?;let input=if let Some(raw)=json{let raw=read_memory_json(&p,&cwd,&raw)?;crate::contracts::parse::<store::PlanCreateInput>("plan-create", &raw)?}else{store::PlanCreateInput{title:title.ok_or_else(||AppError::new("invalid_input","title is required"))?,objective:objective.ok_or_else(||AppError::new("invalid_input","--objective is required"))?,done_when:done_when.ok_or_else(||AppError::new("invalid_input","--done-when is required"))?,tags,constraints,steps:steps.into_iter().map(|title|store::PlanStepInput{title,verify:None}).collect(),request_id}};Store::open(scope_name(p.scope),&p.path)?.plan_create(input)}
-                PlanCommand::Current { context,tag,limit,offset } => if let Some(context)=context { ensure_scope_supported(cli.scope,false,"plan current --context")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open_for_read(scope_name(p.scope),&p.path)?.tracked_plan(&context) } else { plan_list_response(cli.scope,&cwd,None,Some("active"),tag.as_deref(),limit,offset) },
-                PlanCommand::List { state,tag,limit,offset } => plan_list_response(cli.scope,&cwd,None,state.as_deref(),tag.as_deref(),limit,offset),
-                PlanCommand::Search { query,state,tag,limit,offset } => {require_text("query",&query)?;plan_list_response(cli.scope,&cwd,Some(&query),state.as_deref(),tag.as_deref(),limit,offset)},
-                PlanCommand::Show { plan_id } => {ensure_scope_supported(cli.scope,false,"plan show")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open_for_read(scope_name(p.scope),&p.path)?.plan_show(&plan_id)}
-                PlanCommand::Brief { plan_id } => {ensure_scope_supported(cli.scope,false,"plan brief")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open_for_read(scope_name(p.scope),&p.path)?.plan_brief(&plan_id)}
-                PlanCommand::Advance { plan_id,if_revision,done,result,next } => {ensure_scope_supported(cli.scope,false,"plan advance")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.plan_advance(&plan_id,if_revision,&done,&result,next.as_deref())}
-                PlanCommand::Block { plan_id,if_revision,step,reason } => {ensure_scope_supported(cli.scope,false,"plan block")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.plan_block(&plan_id,if_revision,&step,&reason)}
-                PlanCommand::Revise { plan_id,if_revision,reason,json } => {ensure_scope_supported(cli.scope,false,"plan revise")?;let p=resolve_live_store_path(cli.scope,&cwd)?;let raw=read_memory_json(&p,&cwd,&json)?;let input=crate::contracts::parse::<store::PlanReviseInput>("plan-revise", &raw)?;Store::open(scope_name(p.scope),&p.path)?.plan_revise(&plan_id,if_revision,&reason,input)}
-                PlanCommand::Complete { plan_id,if_revision,result,evidence,done_when_checked } => {ensure_scope_supported(cli.scope,false,"plan complete")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.plan_finish(&plan_id,if_revision,true,Some(&result),Some(&evidence),done_when_checked,None)}
-                PlanCommand::Abandon { plan_id,if_revision,reason } => {ensure_scope_supported(cli.scope,false,"plan abandon")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.plan_finish(&plan_id,if_revision,false,None,None,false,Some(&reason))}
-                PlanCommand::Track { plan_id,context } => {ensure_scope_supported(cli.scope,false,"plan track")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.plan_track(&plan_id,&context)}
-                PlanCommand::Untrack { plan_id,context } => {ensure_scope_supported(cli.scope,false,"plan untrack")?;let p=resolve_live_store_path(cli.scope,&cwd)?;Store::open(scope_name(p.scope),&p.path)?.plan_untrack(&plan_id,&context)}
-            }
-        }
+        // Todo and Plan command arms removed: jarvis exposes no task surface
+        // and RunLayer is the sole task authority (INV-002).
         Command::Compress { output } => {
             changeset::reject_selector(selected_changeset.as_deref(), "compress")?;
             crate::archive::compress(&cwd, cli.scope, output.as_deref())

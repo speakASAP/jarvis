@@ -64,6 +64,8 @@ impl Store {
             .export_sync_state_from_snapshot(path)
     }
 
+    // export_sync_todos and export_sync_plans removed with the task surface
+    // (INV-002). Their `plans` and `todos` tables do not exist here.
     fn export_sync_state_from_snapshot(&self, path: &Path) -> Result<SyncExportSummary> {
         if path.exists() {
             return Err(AppError::new(
@@ -147,8 +149,6 @@ impl Store {
         self.export_sync_retrieval(output, &source_hashes)?;
         self.export_sync_relations(output, &source_hashes)?;
         self.export_sync_memory(output)?;
-        self.export_sync_todos(output)?;
-        self.export_sync_plans(output)?;
         self.export_sync_discussions(output)
     }
 
@@ -520,74 +520,7 @@ impl Store {
         Ok(())
     }
 
-    fn export_sync_todos(&self, output: &Connection) -> Result<()> {
-        let mut statement = self.conn.prepare("SELECT id FROM todo_items ORDER BY id")?;
-        let ids = statement
-            .query_map([], |r| r.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for id in ids {
-            let mut todo = load_todo(&self.conn, &id, &self.scope)?;
-            let object = todo.as_object_mut().unwrap();
-            object.remove("request_id");
-            object.remove("scope");
-            object.remove("children");
-            object.remove("revision");
-            insert_sync_object(output, "todo", &id, &todo)?;
-        }
-        Ok(())
-    }
 
-    fn export_sync_plans(&self, output: &Connection) -> Result<()> {
-        let mut statement = self.conn.prepare("SELECT id FROM plans ORDER BY id")?;
-        let ids = statement
-            .query_map([], |r| r.get::<_, String>(0))?
-            .collect::<rusqlite::Result<Vec<_>>>()?;
-        for id in ids {
-            let mut plan = load_plan(&self.conn, &id, &self.scope)?;
-            let object = plan.as_object_mut().unwrap();
-            object.remove("request_id");
-            object.remove("scope");
-            object.remove("revision");
-            if let Some(steps) = object.get_mut("steps").and_then(Value::as_array_mut) {
-                for step in steps {
-                    let step = step.as_object_mut().ok_or_else(|| {
-                        AppError::new("corrupt_store", "Plan step is not an object")
-                    })?;
-                    step.remove("created_revision");
-                    step.remove("updated_revision");
-                }
-            }
-            let mut history = self.conn.prepare(
-                "SELECT action,reason,step_id,result,created_at
-                 FROM plan_history WHERE plan_id=?1 ORDER BY revision,id",
-            )?;
-            let events = history
-                .query_map([&id], |r| {
-                    Ok((
-                        r.get::<_, String>(0)?,
-                        r.get::<_, Option<String>>(1)?,
-                        r.get::<_, Option<String>>(2)?,
-                        r.get::<_, Option<String>>(3)?,
-                        r.get::<_, String>(4)?,
-                    ))
-                })?
-                .collect::<rusqlite::Result<Vec<_>>>()?;
-            plan["history"] = Value::Array(
-                events
-                    .into_iter()
-                    .enumerate()
-                    .map(|(ordinal, (action, reason, step_id, result, created_at))| {
-                        json!({
-                            "ordinal": ordinal as i64, "action": action, "reason": reason,
-                            "step_id": step_id, "result": result, "created_at": created_at,
-                        })
-                    })
-                    .collect(),
-            );
-            insert_sync_object(output, "plan", &id, &plan)?;
-        }
-        Ok(())
-    }
 }
 
 fn create_sync_live_snapshot(source: &Connection, path: &Path) -> Result<()> {

@@ -1777,28 +1777,8 @@ fn rebuild_sync_indexes(
         };
         index_memory_event(tx, id, &input)?;
     }
-    for id in affected.keys("todo") {
-        tx.execute("DELETE FROM todo_fts WHERE todo_id=?1", [id])?;
-        let Some(payload) = object(state, "todo", id) else {
-            continue;
-        };
-        let tags = owned_string_array(payload, "tags")?;
-        index_todo(
-            tx,
-            id,
-            required_str(payload, "title")?,
-            &tags,
-            optional_str(payload, "cue")?,
-            optional_str(payload, "detail")?,
-        )?;
-    }
-    for id in affected.keys("plan") {
-        tx.execute("DELETE FROM plan_fts WHERE plan_id=?1", [id])?;
-        let Some(payload) = object(state, "plan", id) else {
-            continue;
-        };
-        index_plan(tx, id, payload)?;
-    }
+    // todo and plan indexing removed with the task surface (INV-002):
+    // their fts tables and index_* helpers do not exist here.
     Ok(())
 }
 
