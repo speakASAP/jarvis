@@ -69,7 +69,7 @@ fn prepare_store(
     allow_create: bool,
     _migration_progress: Option<&mut MigrationProgress<'_>>,
 ) -> Result<bool> {
-    let mut version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let mut version: i32 = read_schema_version(&conn)?;
     if version == 0 {
         return if allow_create {
             bootstrap_schema(conn)
@@ -90,65 +90,65 @@ fn prepare_store(
     }
     if version < SEARCH_INDEX_VERSION {
         migrate_search_index(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == SEARCH_INDEX_VERSION {
         migrate_ingest_workflow(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == INGEST_WORKFLOW_VERSION {
         migrate_compound_wiki(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == COMPOUND_WIKI_VERSION {
         migrate_page_provenance(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == PAGE_PROVENANCE_VERSION {
         migrate_source_path_revisions(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == SOURCE_PATH_REVISIONS_VERSION {
         migrate_retrieval_weighting(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == RETRIEVAL_WEIGHTING_VERSION {
         migrate_changesets(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if matches!(version, CHANGESETS_VERSION | 11) {
         migrate_external_graph_schema(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == EXTERNAL_GRAPH_VERSION {
         migrate_tags(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == TAGS_VERSION {
         migrate_temporal_memory(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == TEMPORAL_MEMORY_VERSION {
         migrate_agent_state_v15(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == AGENT_STATE_VERSION {
         migrate_todo_features_v16(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == TODO_FEATURES_VERSION {
         migrate_structured_span_index_v17(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == STRUCTURED_SPAN_INDEX_VERSION {
         migrate_agent_tracking_v18(conn)?;
-        version = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        version = read_schema_version(&conn)?;
     }
     if version == AGENT_TRACKING_VERSION {
         let tx=conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
         create_discussion_schema(&tx)?;
         tx.execute("UPDATE meta SET value=?1 WHERE key='format_version'",[DISCUSSION_VERSION.to_string()])?;
-        tx.pragma_update(None,"user_version",DISCUSSION_VERSION)?;
+        write_schema_version(&tx, DISCUSSION_VERSION)?;
         tx.commit()?;
         version=DISCUSSION_VERSION;
     }
@@ -166,7 +166,7 @@ fn prepare_store(
 
 fn migrate_agent_state_v15(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (AGENT_STATE_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -177,13 +177,13 @@ fn migrate_agent_state_v15(conn: &mut Connection) -> Result<()> {
     create_todo_schema(&tx).map_err(|error| AppError::new("store_migration_failed", format!("failed to prepare v{AGENT_STATE_VERSION} Todo schema: {error}")))?;
     create_plan_schema(&tx).map_err(|error| AppError::new("store_migration_failed", format!("failed to prepare v{AGENT_STATE_VERSION} Plan schema: {error}")))?;
     tx.execute("INSERT INTO meta(key,value) VALUES ('format_version',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [AGENT_STATE_VERSION.to_string()])?;
-    tx.pragma_update(None, "user_version", AGENT_STATE_VERSION)?;
+    write_schema_version(&tx, AGENT_STATE_VERSION)?;
     tx.commit().map_err(|error| AppError::new("store_migration_failed", format!("failed to commit v{AGENT_STATE_VERSION} Todo and Plan migration: {error}")))
 }
 
 fn migrate_todo_features_v16(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (TODO_FEATURES_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -217,7 +217,7 @@ fn migrate_todo_features_v16(conn: &mut Connection) -> Result<()> {
          CREATE INDEX IF NOT EXISTS todo_items_reminder ON todo_items(state,target_at,created_at,id);",
     )?;
     tx.execute("INSERT INTO meta(key,value) VALUES ('format_version',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value", [TODO_FEATURES_VERSION.to_string()])?;
-    tx.pragma_update(None, "user_version", TODO_FEATURES_VERSION)?;
+    write_schema_version(&tx, TODO_FEATURES_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -228,7 +228,7 @@ fn migrate_todo_features_v16(conn: &mut Connection) -> Result<()> {
 
 fn migrate_structured_span_index_v17(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (STRUCTURED_SPAN_INDEX_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -276,7 +276,7 @@ fn migrate_structured_span_index_v17(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         [STRUCTURED_SPAN_INDEX_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", STRUCTURED_SPAN_INDEX_VERSION)?;
+    write_schema_version(&tx, STRUCTURED_SPAN_INDEX_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -353,7 +353,7 @@ fn create_agent_tracking_schema(tx: &Transaction<'_>) -> Result<()> {
 
 fn migrate_agent_tracking_v18(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (AGENT_TRACKING_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -374,7 +374,7 @@ fn migrate_agent_tracking_v18(conn: &mut Connection) -> Result<()> {
         "INSERT INTO meta(key,value) VALUES ('format_version',?1) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
         [AGENT_TRACKING_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", AGENT_TRACKING_VERSION)?;
+    write_schema_version(&tx, AGENT_TRACKING_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -384,7 +384,7 @@ fn migrate_agent_tracking_v18(conn: &mut Connection) -> Result<()> {
 }
 
 fn prepare_store_read_only(conn: &Connection) -> Result<()> {
-    let version: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let version: i32 = read_schema_version(&conn)?;
     if version == 0 {
         return Err(AppError::new(
             "unsupported_store_version",
@@ -404,7 +404,7 @@ fn prepare_store_read_only(conn: &Connection) -> Result<()> {
 
 fn migrate_ingest_workflow(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     match current {
         INGEST_WORKFLOW_VERSION..=USER_VERSION => {
             tx.commit()?;
@@ -454,7 +454,7 @@ fn migrate_ingest_workflow(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![INGEST_WORKFLOW_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", INGEST_WORKFLOW_VERSION)?;
+    write_schema_version(&tx, INGEST_WORKFLOW_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -465,7 +465,7 @@ fn migrate_ingest_workflow(conn: &mut Connection) -> Result<()> {
 
 fn migrate_compound_wiki(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     match current {
         COMPOUND_WIKI_VERSION..=USER_VERSION => {
             tx.commit()?;
@@ -499,7 +499,7 @@ fn migrate_compound_wiki(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![COMPOUND_WIKI_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", COMPOUND_WIKI_VERSION)?;
+    write_schema_version(&tx, COMPOUND_WIKI_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -510,7 +510,7 @@ fn migrate_compound_wiki(conn: &mut Connection) -> Result<()> {
 
 fn migrate_page_provenance(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     match current {
         PAGE_PROVENANCE_VERSION..=USER_VERSION => {
             tx.commit()?;
@@ -540,7 +540,7 @@ fn migrate_page_provenance(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![PAGE_PROVENANCE_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", PAGE_PROVENANCE_VERSION)?;
+    write_schema_version(&tx, PAGE_PROVENANCE_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -551,7 +551,7 @@ fn migrate_page_provenance(conn: &mut Connection) -> Result<()> {
 
 fn migrate_source_path_revisions(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     match current {
         SOURCE_PATH_REVISIONS_VERSION..=USER_VERSION => {
             tx.commit()?;
@@ -572,7 +572,7 @@ fn migrate_source_path_revisions(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![SOURCE_PATH_REVISIONS_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", SOURCE_PATH_REVISIONS_VERSION)?;
+    write_schema_version(&tx, SOURCE_PATH_REVISIONS_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -585,7 +585,7 @@ fn migrate_source_path_revisions(conn: &mut Connection) -> Result<()> {
 
 fn migrate_retrieval_weighting(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     match current {
         RETRIEVAL_WEIGHTING_VERSION..=USER_VERSION => {
             tx.commit()?;
@@ -625,7 +625,7 @@ fn migrate_retrieval_weighting(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![RETRIEVAL_WEIGHTING_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", RETRIEVAL_WEIGHTING_VERSION)?;
+    write_schema_version(&tx, RETRIEVAL_WEIGHTING_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -636,7 +636,7 @@ fn migrate_retrieval_weighting(conn: &mut Connection) -> Result<()> {
 
 fn migrate_changesets(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     match current {
         CHANGESETS_VERSION..=USER_VERSION => {
             tx.commit()?;
@@ -668,7 +668,7 @@ fn migrate_changesets(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![CHANGESETS_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", CHANGESETS_VERSION)?;
+    write_schema_version(&tx, CHANGESETS_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -679,7 +679,7 @@ fn migrate_changesets(conn: &mut Connection) -> Result<()> {
 
 fn migrate_external_graph_schema(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (EXTERNAL_GRAPH_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -768,7 +768,7 @@ fn migrate_external_graph_schema(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![EXTERNAL_GRAPH_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", EXTERNAL_GRAPH_VERSION)?;
+    write_schema_version(&tx, EXTERNAL_GRAPH_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",
@@ -779,7 +779,7 @@ fn migrate_external_graph_schema(conn: &mut Connection) -> Result<()> {
 
 fn migrate_tags(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (TAGS_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -826,7 +826,7 @@ fn migrate_tags(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![TAGS_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", TAGS_VERSION)?;
+    write_schema_version(&tx, TAGS_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",

@@ -109,7 +109,7 @@ fn create_temporal_memory_schema(tx: &Transaction<'_>) -> Result<()> {
 
 fn migrate_temporal_memory(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if current >= TEMPORAL_MEMORY_VERSION {
         tx.commit()?;
         return Ok(());
@@ -131,7 +131,7 @@ fn migrate_temporal_memory(conn: &mut Connection) -> Result<()> {
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![TEMPORAL_MEMORY_VERSION.to_string()],
     )?;
-    tx.pragma_update(None, "user_version", TEMPORAL_MEMORY_VERSION)?;
+    write_schema_version(&tx, TEMPORAL_MEMORY_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",

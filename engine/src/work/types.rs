@@ -1,3 +1,4 @@
+use crate::schema_version::read_schema_version;
 use crate::{
     error::{AppError, Result},
     scope::{Scope, StorePath},

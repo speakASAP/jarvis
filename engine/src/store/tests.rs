@@ -958,10 +958,7 @@ mod tests {
         let results = migrated.search("注意力", 10).unwrap().results;
         assert_eq!(results.len(), 1);
         assert_eq!(results[0].identifier, "attention");
-        let version: i32 = migrated
-            .conn
-            .pragma_query_value(None, "user_version", |row| row.get(0))
-            .unwrap();
+        let version: i32 = read_schema_version(&migrated.conn).unwrap();
         let journal_mode: String = migrated
             .conn
             .pragma_query_value(None, "journal_mode", |row| row.get(0))
@@ -982,7 +979,7 @@ mod tests {
             [TEMPORAL_MEMORY_VERSION.to_string()],
         )
         .unwrap();
-        seed.pragma_update(None, "user_version", TEMPORAL_MEMORY_VERSION)
+        write_schema_version(&seed, TEMPORAL_MEMORY_VERSION)
             .unwrap();
         drop(seed);
 
@@ -1008,15 +1005,11 @@ mod tests {
                 [USER_VERSION.to_string()],
             )
             .unwrap();
-        winning_tx
-            .pragma_update(None, "user_version", USER_VERSION)
-            .unwrap();
+        write_schema_version(&winning_tx, USER_VERSION).unwrap();
         winning_tx.commit().unwrap();
 
         waiting_migration.join().unwrap().unwrap();
-        let version: i32 = winner
-            .pragma_query_value(None, "user_version", |row| row.get(0))
-            .unwrap();
+        let version: i32 = read_schema_version(&winner).unwrap();
         assert_eq!(version, USER_VERSION);
     }
 
@@ -1025,11 +1018,11 @@ mod tests {
         let mut store = test_store();
         for migrate in [migrate_structured_span_index_v17, migrate_agent_tracking_v18] {
             migrate(&mut store.conn).unwrap();
-            let version: i32 = store.conn.pragma_query_value(None, "user_version", |row| row.get(0)).unwrap();
+            let version: i32 = read_schema_version(&store.conn).unwrap();
             assert_eq!(version, USER_VERSION);
-            store.conn.pragma_update(None, "user_version", USER_VERSION + 1).unwrap();
+            write_schema_version(&store.conn, USER_VERSION + 1).unwrap();
             assert_eq!(migrate(&mut store.conn).unwrap_err().code, "unsupported_store_version");
-            store.conn.pragma_update(None, "user_version", USER_VERSION).unwrap();
+            write_schema_version(&store.conn, USER_VERSION).unwrap();
         }
     }
 
@@ -1047,10 +1040,7 @@ mod tests {
 
         migrate_ingest_workflow(&mut store.conn).unwrap();
 
-        let version: i32 = store
-            .conn
-            .pragma_query_value(None, "user_version", |row| row.get(0))
-            .unwrap();
+        let version: i32 = read_schema_version(&store.conn).unwrap();
         assert_eq!(version, COMPOUND_WIKI_VERSION);
     }
 

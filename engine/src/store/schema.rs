@@ -1,6 +1,6 @@
 fn bootstrap_schema(conn: &mut Connection) -> Result<bool> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if current != 0 {
         tx.commit()?;
         return Ok(false);
@@ -208,7 +208,6 @@ fn bootstrap_schema(conn: &mut Connection) -> Result<bool> {
         INSERT INTO meta(key, value) VALUES ('tokenizer', '{TOKENIZER_ID}');
         INSERT INTO meta(key, value) VALUES ('store_id', LOWER(HEX(RANDOMBLOB(32))));
         INSERT INTO meta(key, value) VALUES ('store_revision', LOWER(HEX(RANDOMBLOB(32))));
-        PRAGMA user_version = {USER_VERSION};
         "
     ))?;
     create_temporal_memory_schema(&tx)?;
@@ -231,7 +230,7 @@ fn bootstrap_schema(conn: &mut Connection) -> Result<bool> {
 
 fn migrate_search_index(conn: &mut Connection) -> Result<()> {
     let tx = conn.transaction_with_behavior(TransactionBehavior::Immediate)?;
-    let current: i32 = tx.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    let current: i32 = read_schema_version(&tx)?;
     if (SEARCH_INDEX_VERSION..=USER_VERSION).contains(&current) {
         tx.commit()?;
         return Ok(());
@@ -250,17 +249,14 @@ fn migrate_search_index(conn: &mut Connection) -> Result<()> {
         )
     })?;
 
-    tx.execute(
-        "INSERT INTO meta(key, value) VALUES ('format_version', ?1)
-         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        params![SEARCH_INDEX_VERSION.to_string()],
-    )?;
+    // format_version is written by write_schema_version below, the single
+    // owner of the schema-version key.
     tx.execute(
         "INSERT INTO meta(key, value) VALUES ('tokenizer', ?1)
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![TOKENIZER_ID],
     )?;
-    tx.pragma_update(None, "user_version", SEARCH_INDEX_VERSION)?;
+    write_schema_version(&tx, SEARCH_INDEX_VERSION)?;
     tx.commit().map_err(|error| {
         AppError::new(
             "store_migration_failed",

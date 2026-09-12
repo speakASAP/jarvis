@@ -37,7 +37,7 @@ fn migrate_schema_shadow(
     let pending_connection = Connection::open(&pending)?;
     pending_connection.busy_timeout(Duration::from_secs(2))?;
     let pending_version: i32 =
-        pending_connection.pragma_query_value(None, "user_version", |row| row.get(0))?;
+        read_schema_version(&pending_connection)?;
     if pending_version != CURRENT_SCHEMA_VERSION as i32 {
         return Err(AppError::new(
             "store_migration_failed",
